@@ -14,3 +14,4 @@ deploy:
   file: k9mail/build/outputs/apk/k9mail-debug.apk
   on:
     repo: winardiaris/k-9
+    tags: true
