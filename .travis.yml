@@ -9,3 +9,12 @@ android:
 jdk: oraclejdk8
 
 script: ./gradlew testDebug
+deploy:
+    provider: release
+    api_key:
+  file: k9mail/build/outputs/apk/k9mail-debug.apk
+  on:
+    repo: winardiaris/k-9
+    tags: true
+
+
