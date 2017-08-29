@@ -58,7 +58,6 @@ public class MessageCryptoHelper {
     private static final int INVALID_OPENPGP_RESULT_CODE = -1;
     private static final MimeBodyPart NO_REPLACEMENT_PART = null;
     private static final int REQUEST_CODE_USER_INTERACTION = 124;
-    private static final int PROGRESS_SIZE_THRESHOLD = 4096;
 
 
     private final Context context;
@@ -251,6 +250,7 @@ public class MessageCryptoHelper {
             decryptIntent.putExtra(OpenPgpApi.EXTRA_SENDER_ADDRESS, from[0].getAddress());
         }
 
+        decryptIntent.putExtra(OpenPgpApi.EXTRA_SUPPORT_OVERRIDE_CRYPTO_WARNING, true);
         decryptIntent.putExtra(OpenPgpApi.EXTRA_DECRYPTION_RESULT, cachedDecryptionResult);
 
         return decryptIntent;
@@ -405,10 +405,7 @@ public class MessageCryptoHelper {
                     throw new IllegalStateException("part to stream must be encrypted or inline!");
                 }
                 if (body instanceof SizeAware) {
-                    long bodySize = ((SizeAware) body).getSize();
-                    if (bodySize > PROGRESS_SIZE_THRESHOLD) {
-                        return bodySize;
-                    }
+                    return ((SizeAware) body).getSize();
                 }
                 return null;
             }
@@ -514,9 +511,12 @@ public class MessageCryptoHelper {
         OpenPgpSignatureResult signatureResult =
                 currentCryptoResult.getParcelableExtra(OpenPgpApi.RESULT_SIGNATURE);
         PendingIntent pendingIntent = currentCryptoResult.getParcelableExtra(OpenPgpApi.RESULT_INTENT);
+        PendingIntent insecureWarningPendingIntent = currentCryptoResult.getParcelableExtra(OpenPgpApi.RESULT_INSECURE_DETAIL_INTENT);
+        boolean overrideCryptoWarning = currentCryptoResult.getBooleanExtra(
+                OpenPgpApi.RESULT_OVERRIDE_CRYPTO_WARNING, false);
 
-        CryptoResultAnnotation resultAnnotation = CryptoResultAnnotation.createOpenPgpResultAnnotation(
-                decryptionResult, signatureResult, pendingIntent, outputPart);
+        CryptoResultAnnotation resultAnnotation = CryptoResultAnnotation.createOpenPgpResultAnnotation(decryptionResult,
+                signatureResult, pendingIntent, insecureWarningPendingIntent, outputPart, overrideCryptoWarning);
 
         onCryptoOperationSuccess(resultAnnotation);
     }

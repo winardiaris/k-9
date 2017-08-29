@@ -10,13 +10,9 @@ import android.content.Context;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
 import android.support.annotation.WorkerThread;
-import timber.log.Timber;
 
 import com.fsck.k9.Globals;
-import com.fsck.k9.K9;
 import com.fsck.k9.R;
-import com.fsck.k9.message.html.HtmlConverter;
-import com.fsck.k9.message.html.HtmlSanitizer;
 import com.fsck.k9.mail.Address;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Message;
@@ -27,9 +23,12 @@ import com.fsck.k9.mail.internet.Viewable;
 import com.fsck.k9.mail.internet.Viewable.Flowed;
 import com.fsck.k9.mailstore.util.FlowedMessageUtils;
 import com.fsck.k9.message.extractors.AttachmentInfoExtractor;
+import com.fsck.k9.message.html.HtmlConverter;
+import com.fsck.k9.message.html.HtmlProcessor;
 import com.fsck.k9.ui.crypto.MessageCryptoAnnotations;
 import com.fsck.k9.ui.crypto.MessageCryptoSplitter;
 import com.fsck.k9.ui.crypto.MessageCryptoSplitter.CryptoMessageParts;
+import timber.log.Timber;
 
 import static com.fsck.k9.mail.internet.MimeUtility.getHeaderParameter;
 import static com.fsck.k9.mail.internet.Viewable.Alternative;
@@ -50,22 +49,22 @@ public class MessageViewInfoExtractor {
 
     private final Context context;
     private final AttachmentInfoExtractor attachmentInfoExtractor;
-    private final HtmlSanitizer htmlSanitizer;
+    private final HtmlProcessor htmlProcessor;
 
 
     public static MessageViewInfoExtractor getInstance() {
         Context context = Globals.getContext();
         AttachmentInfoExtractor attachmentInfoExtractor = AttachmentInfoExtractor.getInstance();
-        HtmlSanitizer htmlSanitizer = HtmlSanitizer.getInstance();
-        return new MessageViewInfoExtractor(context, attachmentInfoExtractor, htmlSanitizer);
+        HtmlProcessor htmlProcessor = HtmlProcessor.newInstance();
+        return new MessageViewInfoExtractor(context, attachmentInfoExtractor, htmlProcessor);
     }
 
     @VisibleForTesting
     MessageViewInfoExtractor(Context context, AttachmentInfoExtractor attachmentInfoExtractor,
-            HtmlSanitizer htmlSanitizer) {
+            HtmlProcessor htmlProcessor) {
         this.context = context;
         this.attachmentInfoExtractor = attachmentInfoExtractor;
-        this.htmlSanitizer = htmlSanitizer;
+        this.htmlProcessor = htmlProcessor;
     }
 
     @WorkerThread
@@ -198,8 +197,7 @@ public class MessageViewInfoExtractor {
                 }
             }
 
-            String content = HtmlConverter.wrapMessageContent(html);
-            String sanitizedHtml = htmlSanitizer.sanitize(content);
+            String sanitizedHtml = htmlProcessor.processForDisplay(html.toString());
 
             return new ViewableExtractedText(text.toString(), sanitizedHtml);
         } catch (Exception e) {
@@ -233,7 +231,8 @@ public class MessageViewInfoExtractor {
             if (t == null) {
                 t = "";
             } else if (viewable instanceof Flowed) {
-                t = FlowedMessageUtils.deflow(t, false);
+                boolean delSp = ((Flowed) viewable).isDelSp();
+                t = FlowedMessageUtils.deflow(t, delSp);
                 t = HtmlConverter.textToHtml(t);
             } else if (viewable instanceof Text) {
                 t = HtmlConverter.textToHtml(t);
@@ -271,7 +270,8 @@ public class MessageViewInfoExtractor {
             } else if (viewable instanceof Html) {
                 t = HtmlConverter.htmlToText(t);
             } else if (viewable instanceof Flowed) {
-                t = FlowedMessageUtils.deflow(t, false);
+                boolean delSp = ((Flowed) viewable).isDelSp();
+                t = FlowedMessageUtils.deflow(t, delSp);
             } else if (!(viewable instanceof Text)) {
                 throw new IllegalStateException("unhandled case!");
             }
